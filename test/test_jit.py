@@ -11375,7 +11375,7 @@ a")
         with self.assertRaisesRegex(RuntimeError, "did you mean ('float')?"):
             @torch.jit.script
             def fn(x):
-                # type: (double) -> int
+                # type: (double) -> int  # noqa
                 return int(2.3)
 
 
