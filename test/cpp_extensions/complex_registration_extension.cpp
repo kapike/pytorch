@@ -28,7 +28,7 @@ namespace at {
 struct CPUComplexFloatType : public at::CPUTypeDefault {
   CPUComplexFloatType()
       : CPUTypeDefault(
-            CPUTensorId(),
+            ComplexCPUTensorId(),
             /*is_variable=*/false,
             /*is_undefined=*/false) {}
 
@@ -39,9 +39,16 @@ struct CPUComplexFloatType : public at::CPUTypeDefault {
   TypeID ID() const override;
 
   Tensor empty(IntArrayRef size, const TensorOptions & options) const override {
-    // Delegate to the appropriate cpu tensor factory
-    const DeviceGuard device_guard(options.device());
-    return at::native::empty_cpu(/* actuals */ size, options);
+    AT_ASSERT(options.device().is_cpu());
+    auto* allocator = at::getCPUAllocator();
+    auto storage_impl = c10::make_intrusive<StorageImpl>(
+        options.dtype(),
+        0,
+        allocator->allocate(nelements * dtype.itemsize()),
+        allocator,
+        /*resizable=*/true);
+    auto tensor = detail::make_tensor<TensorImpl>(storage_impl, at::ComplexCPUTensorId());
+    return tensor;
   }
 };
 
@@ -49,7 +56,7 @@ struct ComplexHooks : public at::ComplexHooksInterface {
   ComplexHooks(ComplexHooksArgs) {}
   void registerComplexTypes(Context* context) const override {
     context->registerType(
-        Backend::CPU, ScalarType::ComplexFloat, new CPUComplexFloatType());
+        Backend::ComplexCPU, ScalarType::ComplexFloat, new CPUComplexFloatType());
   }
 };
 
@@ -62,7 +69,7 @@ caffe2::TypeMeta CPUComplexFloatType::typeMeta() const {
 }
 
 Backend CPUComplexFloatType::backend() const {
-  return Backend::CPU;
+  return Backend::ComplexCPU;
 }
 
 const char* CPUComplexFloatType::toString() const {
